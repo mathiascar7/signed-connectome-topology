@@ -6,6 +6,10 @@ The full labeled audit covers **1,213 participants** (**382 controls**, **831 AD
 
 > **Dataset note:** [`sample_connectomes.csv`](sample_connectomes.csv) is a 20-participant sample with 19,900 edge columns and a participant identifier. It is not the full labeled analysis cohort and does not include an outcome column. Cohort-level statistics and model results below refer to the full audit artifacts.
 
+[![Explore the interactive risk-score demo](https://img.shields.io/badge/Explore-Interactive%20risk--score%20demo-3157a4?style=for-the-badge)](https://mathiascar7.github.io/signed-connectome-topology/)
+
+**Interactive explainer:** [Launch the GitHub Pages demo](https://mathiascar7.github.io/signed-connectome-topology/) or [view its source](docs/index.html).
+
 ## Contents
 
 - [Study overview](#study-overview)
@@ -14,6 +18,7 @@ The full labeled audit covers **1,213 participants** (**382 controls**, **831 AD
 - [Mathematical formulation and topological mechanisms](#mathematical-formulation-and-topological-mechanisms)
 - [Statistical and information-theoretic results](#statistical-and-information-theoretic-results)
 - [Nested cross-validation architecture](#nested-cross-validation-architecture)
+- [Interactive LINEAR_META_RISK_SCORE demo](https://mathiascar7.github.io/signed-connectome-topology/)
 - [Reproducibility artifacts](#reproducibility-artifacts)
 - [Repository metadata](#repository-metadata)
 
@@ -39,6 +44,7 @@ The baseline audit characterizes the raw-edge signal and its geometry. The topol
 | [`data_audit/`](data_audit/) | Six baseline figures auditing raw edges, signed networks, spectral structure, and linear classification |
 | [`topology_visualizations/`](topology_visualizations/) | Five figures illustrating mean-connectome overlap and proposed biophysical mechanisms |
 | [`features_audit/`](features_audit/) | Six quantitative figures, two audit tables, and a machine-readable audit summary |
+| [`docs/index.html`](docs/index.html) | Self-contained interactive explainer for `LINEAR_META_RISK_SCORE` and state-conditioned topology |
 
 ## Baseline edge-space audit
 
@@ -66,7 +72,7 @@ The baseline figures show the raw correlation-edge landscape before topological 
 
 ![Unsigned and signed node strength, signed-edge cancellation, and global triadic frustration](data_audit/04_signed_cancellation_and_spinglass.png)
 
-*Unsigned node strength averages 6.92, compared with net signed strength of 0.89, corresponding to 87.1% magnitude cancellation. The negative-edge fraction is 47.38%; global frustration is 48.93% ± 0.53% in controls and 48.81% ± 0.38% in ADHD, against a sign-shuffled null of 50.00% ± 0.04%.*
+*Unsigned node strength averages 6.92, compared with net signed strength of 0.89, corresponding to 87.1% magnitude cancellation (node-strength r = −0.118). The negative-edge fraction is 47.38%; global frustration is 48.93% ± 0.53% in controls and 48.81% ± 0.38% in ADHD, against a sign-shuffled null of 50.00% ± 0.04%.*
 
 ### Figure 5 — Hub topology and degree heterogeneity
 
@@ -186,7 +192,7 @@ Across 19,900 raw edges, no feature survives BH-FDR correction. Across the 1,000
 
 ![Linear effect size versus nonlinear information gain and Wasserstein distance versus information gain](features_audit/fig02_nonlinear_synergy_and_gain_paradox.png)
 
-*Panel A shows that modest univariate Cohen’s d can coexist with high model information gain when a feature is conditioned on network state. Panel B compares Wasserstein-1 distance with information gain across the five operator families.*
+*Panel A shows modest marginal effect size alongside nonlinear gain; Region 12 and Region 163 Deceleration features illustrate that weak univariate separation can still contribute substantial tree gain. Panel B compares Wasserstein-1 distance with information gain across the five operator families.*
 
 ### Figure 14 — Multivariate interaction information
 
@@ -210,7 +216,7 @@ Across 19,900 raw edges, no feature survives BH-FDR correction. Across the 1,000
 
 ![Control and ADHD distributions for representative invariants from all five operator families](features_audit/fig06_biophysical_invariants_distribution_shift.png)
 
-*The figure compares representative Control (n = 382) and ADHD (n = 831) distributions. Signed-load magnitudes for Frustration, Antagonism, and Inhibitory are lower in ADHD (d < 0), indicating attenuated structured inhibitory/antagonistic network regulation rather than hyper-inhibition. Deceleration at Region 63 has d = −0.11, q = 0.112.*
+*The figure compares representative Control (n = 382) and ADHD (n = 831) distributions: Region 49 Frustration (d = −0.27, q < 0.001), Region 48 Antagonism (d = −0.17, q = 0.013), Region 59 DeadEndCrash (d = −0.23, q = 0.001), Region 63 Deceleration (d = −0.11, q = 0.112), and Region 81 Inhibitory (d = −0.31, q < 0.001). Signed-load magnitudes are lower in ADHD, indicating attenuated structured inhibitory/antagonistic regulation rather than hyper-inhibition.*
 
 ### Family-level audit
 
@@ -246,7 +252,38 @@ Additional high-gain non-Frustration features are `Region_48_Antagonism` (gain 3
 
 The hybrid model combines a leakage-controlled linear baseline with nonlinear topological refinement.
 
-1. **Fold-local feature extraction and compression.** Within each cross-validation split, the 19,900 raw edges are compressed with an L2-regularized linear meta-model (`Ridge` / `LogisticRegression`). This produces an out-of-fold global baseline score, `LINEAR_META_RISK_SCORE` $\in [0,1]$, so the linear stacking stage does not train on the rows later used to fit the tree model.
+### LINEAR_META_RISK_SCORE: global linear state
+
+Within each training split, an inner-CV L2-regularized logistic model compresses the 19,900 raw edges into an out-of-fold `LINEAR_META_RISK_SCORE` in [0, 1]. This fold-local score provides a global linear state anchor without exposing the downstream model to in-sample predictions; the flat raw-edge L2 logistic reference achieves ROC-AUC 0.5381. LightGBM then conditions the 1,000 V16 invariants on that global state. This is especially informative for Deceleration: its marginal effect is modest (|d| = 0.0619), yet its conditional tree gain is 21,546.96, contributing to the nested-CV ROC-AUC of 0.7164.
+
+The flow below shows the two feature branches and the fold-local construction of the global risk score:
+
+```mermaid
+flowchart LR
+    E["19,900 raw functional-connectivity edges"] --> CV["Inner-CV L2 logistic regression<br/>fold-local out-of-fold predictions"]
+    CV --> R["LINEAR_META_RISK_SCORE<br/>global state in [0, 1]"]
+    T["1,000 V16 topological invariants<br/>5 operators × 200 ROIs"] --> L["LightGBM<br/>state-conditioned nonlinear splits"]
+    R --> L
+    L --> O["Outer nested-CV evaluation<br/>mean ROC-AUC = 0.7164"]
+    classDef raw fill:#e7eefb,stroke:#4263a5,color:#15294f,stroke-width:2px;
+    classDef score fill:#d7f3ed,stroke:#16836c,color:#103b33,stroke-width:2px;
+    classDef topology fill:#fff0d6,stroke:#c98319,color:#523406,stroke-width:2px;
+    classDef model fill:#eee5fb,stroke:#7650a4,color:#32204b,stroke-width:2px;
+    class E,CV raw;
+    class R score;
+    class T topology;
+    class L,O model;
+```
+
+### Interactive LINEAR_META_RISK_SCORE demo
+
+Adjust the global linear score, normalized Deceleration, Frustration, and Dead-End Crash sliders to explore a live state-conditioned decision surface and compare illustrative linear and nonlinear scores. The cohort-level ROC-AUC badges show the audited benchmark results; the browser visualization is a conceptual explainer, not a trained subject-level predictor.
+
+[![Open interactive risk-score demo](https://img.shields.io/badge/Open-Interactive%20Demo-3157a4?style=for-the-badge)](https://mathiascar7.github.io/signed-connectome-topology/)
+
+The underlying single-file demo is [`docs/index.html`](docs/index.html).
+
+1. **Fold-local feature extraction and compression.** Within each cross-validation split, the 19,900 raw edges are compressed with an L2-regularized `LogisticRegression` meta-model. This produces an out-of-fold global baseline score, `LINEAR_META_RISK_SCORE` $\in [0,1]$, so the linear stacking stage does not train on the rows later used to fit the tree model.
 2. **Nonlinear refinement.** `LightGBM` ingests the out-of-fold linear risk score together with all 1,000 V16 invariants. Inner 5-fold cross-validation with Optuna tunes hyperparameters and performs feature selection, enabling conditional effects such as Deceleration given global risk state.
 3. **Outer evaluation.** A 5-fold nested cross-validation estimates generalization performance. The outer-fold ROC-AUC scores are:
 
@@ -257,7 +294,7 @@ The hybrid model combines a leakage-controlled linear baseline with nonlinear to
 | 3 | 0.6961 |
 | 4 | 0.7441 |
 | 5 | 0.6948 |
-| **Mean out-of-fold ROC-AUC** | **0.7164 ± 0.0185 SD** |
+| **Mean out-of-fold ROC-AUC** | **0.7164 ± 0.0188 SD** |
 
 ### Synthesis of predictive and information-theoretic value
 
