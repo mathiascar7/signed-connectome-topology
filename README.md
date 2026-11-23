@@ -2,38 +2,38 @@
 
 **A leakage-controlled hybrid architecture combining out-of-fold linear compression with non-Euclidean signed-graph invariants for ADHD-versus-control classification.**
 
-> **Institutional Context & Data Governance.** Developed as a methodological research collaboration with the **University of Florida (UF)**. Due to institutional IRB protocols and clinical data-use agreements, raw subject-level diagnostic labels remain private. This repository provides the complete deterministic feature-extraction engine, the zero-leakage nested cross-validation pipeline, and an anonymized 20-subject schema sample (`data/sample_connectomes.csv`) to verify end-to-end execution. Full validation documentation is available to admissions committees and academic reviewers upon request.
+> **Institutional Context & Data Governance.** Developed as a methodological research collaboration with the **University of Florida (UF)**. Due to institutional IRB protocols and clinical data-use agreements, raw subject-level diagnostic labels remain private. This repository provides the complete deterministic feature-extraction engine, the zero-leakage nested cross-validation pipeline, and an anonymized 20-subject schema sample (`data/sample_connectomes.csv`) to verify end-to-end execution. Full validation artifacts are available to admissions committees and academic reviewers upon request.
 
 ---
 
 ## Abstract & Executive Summary
 
-Resting-state functional MRI (rs-fMRI) classification in neurodevelopmental cohorts operates in an extreme high-dimensional, low-signal-to-noise regime ($p = 19,900$ edges, $n = 1,213$ subjects). Across cohorts, the mean absolute edge-weight shift between ADHD and neurotypical controls is **0.0021** (maximum single-edge shift **0.0154**), buried beneath a typical rs-fMRI physiological and scanner noise floor of $\approx 0.015$ ($\text{SNR} \approx 0.14$). Under strict leakage-free validation, standard tabular classifiers and unsigned graph baselines plateau at **0.60–0.63 ROC-AUC**.
+Resting-state functional MRI (rs-fMRI) classification in neurodevelopmental cohorts operates in an extreme high-dimensional, low-signal-to-noise regime ($p = 19,900$ edges, $n = 1,213$ subjects). Across cohorts, the mean absolute edge-weight shift between ADHD and neurotypical controls is **0.0021** (maximum single-edge shift **0.0154**), buried beneath a typical rs-fMRI physiological and scanner noise floor of $\approx 0.015$ ($\text{SNR} \approx 0.14$)[cite: 5]. Under strict leakage-free validation, conventional flat/tabular classifiers and unsigned graph baselines plateau at **0.60–0.63 ROC-AUC**.
 
-Rather than deploying over-parameterized black-box architectures that memorize $p \gg n$ noise, we formulate connectome classification through **Structural Balance Theory** and **signed-graph walk dynamics**. By explicitly preserving negative functional correlations ($W_{ij} < 0$) and pairing an out-of-fold (OOF) L2-regularized linear probability anchor with 1,000 deterministic node-level signed-graph descriptors refined by heavily regularized gradient-boosted trees (LightGBM), our framework achieves **0.7164 ± 0.0185 mean outer-fold ROC-AUC** in **5×5 nested cross-validation**—an **+8.64 to +11.64 percentage-point gain** over conventional baselines without using demographic, behavioral, or anatomical atlas priors.
+Rather than deploying over-parameterized black-box models that memorize $p \gg n$ noise, we challenge the standard neuroimaging convention of discarding negative correlations ($W_{ij} < 0$). Formulating connectome classification through **Structural Balance Theory** and **signed-graph walk dynamics**, we pair an out-of-fold (OOF) L2-regularized linear probability anchor with 1,000 deterministic node-level signed-graph descriptors refined by heavily regularized gradient-boosted trees (LightGBM). Our framework achieves **0.7164 ± 0.0185 mean outer-fold ROC-AUC** in **5×5 nested cross-validation**—an **+8.64 to +11.64 percentage-point gain** over conventional baselines without demographic, behavioral, or anatomical atlas priors[cite: 12].
 
 ---
 
-## 1. Problem Formulation: The Low-SNR & $p \gg n$ Barrier
+## 1. Problem Formulation: Breaking the Sub-Noise & $p \gg n$ Barrier
 
 - **Input Representation:** Each subject $m \in \{1, \dots, 1213\}$ is represented exclusively by a symmetric, zero-diagonal $200 \times 200$ whole-brain Pearson correlation matrix $W^{(m)} = (W^{(m)})^\top$, flattened into its strict upper triangle of $p = \binom{200}{2} = 19,900$ continuous edge features (`0throw_1thcolumn` through `198throw_199thcolumn`).
-- **Blind Experimental Protocol:** All demographic covariates (`age`, `sex`, `site`, `site_id`), clinical questionnaires, and anatomical parcellation labels are excluded prior to modeling. ROI indices $\{0, \dots, 199\}$ are treated strictly as anonymous graph vertices.
-- **Statistical Bottleneck:** Empirical cohort-level edge differences exhibit a mean absolute deviation of $0.0021$ and a maximum single-edge deviation of $0.0154$, matching the expected thermal and physiological noise floor of resting-state BOLD correlations. Consequently, univariate edge filtering or unregularized multi-layer perceptrons memorize site- and subject-specific noise.
+- **Blind Experimental Protocol:** All demographic covariates (`age`, `sex`, `site`, `site_id`), clinical questionnaires, and anatomical parcellation labels are stripped prior to feature extraction. ROI indices $\{0, \dots, 199\}$ are treated strictly as anonymous graph vertices.
+- **Why Standard Pipelines Fail:** Cohort-level edge differences exhibit a mean absolute deviation of $0.0021$ and a maximum single-edge deviation of $0.0154$—an order of magnitude smaller than individual variance[cite: 5]. Standard models either average away localized alterations or overfit site-specific noise.
 
-![Mean control and ADHD connectomes and overlapping edge-weight distributions](assets/figures/02_page03_mean_connectomes_overlap.jpg)
+![Mean control and ADHD connectomes and overlapping edge-weight distributions](assets/figures/02_page03_mean_connectomes_overlap.png)
 
-*Figure 1. Empirical cohort-averaged connectomes (Panels A–B) and overlapping edge-weight density distributions (Panel C) illustrating the $\Delta\mu = 0.0021$ mean shift and $\max \vert{}\Delta r\vert{} = 0.0154$ ceiling that define the sub-noise classification regime.*
+*Figure 1. Empirical cohort-averaged connectomes (Panels A–B) and overlapping edge-weight density distributions (Panel C) illustrating the $\Delta\mu = 0.0021$ mean shift and $\max \vert{}\Delta r\vert{} = 0.0154$ ceiling that define the sub-noise classification regime[cite: 5, 13].*
 
 ---
 
-## 2. Theoretical Motivation & Engineering Matrix
+## 2. Conceptual Shift & Engineering Matrix
 
-Conventional connectomic pipelines routinely threshold correlation matrices to positive weights ($W^+ = \max(W, 0)$) or take absolute values ($\vert{}W\vert{}$). Mathematically, both operations destroy **triadic sign consistency** ($W_{ij}W_{jk}W_{ik} < 0$) and **local antagonistic coupling**, discarding **75.6%** of the discriminative topological Information Gain recovered by our model.
+Standard connectomic pipelines routinely apply positive-only thresholds ($W^+ = \max(W, 0)$) or absolute-value transforms ($\vert{}W\vert{}$) so that classical graph metrics remain well-defined. Mathematically, both operations erase **triadic sign consistency** ($W_{ij}W_{jk}W_{ik} < 0$) and **local antagonistic coupling**, discarding **75.6%** of the discriminative topological Information Gain recovered by our architecture[cite: 3].
 
 | Bottleneck in rs-fMRI Modeling | Failure Mode of Conventional Pipelines | Engineered Architectural Solution |
 | :--- | :--- | :--- |
 | **Severe Dimensionality ($p = 19,900 \gg n = 1,213$)** | Unconstrained splits and dense neural layers overfit spurious edge fluctuations. | Fold-contained two-sample Kolmogorov–Smirnov (KS) filtering (`top_k=500` raw edges; `top_k=300` graph descriptors) paired with strong L2/L1 regularization. |
-| **Sub-Noise Edge Shifts ($\Delta\mu \approx 0.0021$)** | Single-edge statistics lack statistical power; whole-brain global averages wash out localized circuit alterations. | Node-level topological aggregation mapping 19,900 noisy edges into 1,000 deterministic structural-balance and greedy-walk invariants (5 per ROI). |
+| **Sub-Noise Edge Shifts ($\Delta\mu \approx 0.0021$)**[cite: 5] | Single-edge statistics lack statistical power; whole-brain global averages wash out localized circuit alterations. | Node-level topological aggregation mapping 19,900 noisy edges into 1,000 deterministic structural-balance and greedy-walk invariants (5 per ROI). |
 | **Loss of Anti-Correlations ($W_{ij} < 0$)** | Positive-only thresholding and $\Vert{}W\Vert{}$ transforms erase functional segregation and triadic frustration. | Explicit decomposition into $W^+ = \max(W, 0)$ and $W^- = \min(W, 0)$, quantifying triadic frustration and negative-strength concentration. |
 | **Global Linear vs. Local Non-Linear Geometry** | Linear models miss threshold interactions; decision trees poorly approximate dense linear combinations. | Two-stage nested stacking: an OOF L2 logistic regression probability anchor supplies global linear risk to LightGBM alongside localized graph invariants. |
 
@@ -110,11 +110,11 @@ flowchart TD
 
 | Outer Fold | Held-Out Test ROC-AUC |
 | :---: | :---: |
-| Fold 1 | 0.7259 |
-| Fold 2 | 0.7212 |
-| Fold 3 | 0.6961 |
-| Fold 4 | 0.7441 |
-| Fold 5 | 0.6948 |
+| Fold 1 | 0.7259[cite: 12] |
+| Fold 2 | 0.7212[cite: 12] |
+| Fold 3 | 0.6961[cite: 12] |
+| Fold 4 | 0.7441[cite: 12] |
+| Fold 5 | 0.6948[cite: 12] |
 | **Mean ± SD** | **0.7164 ± 0.0185** |
 
 <details>
@@ -140,20 +140,20 @@ flowchart TD
 
 | Topological Descriptor Group | Share of Topological Gain | OOF Information Gain |
 | :--- | :---: | :---: |
-| Signed / Negative-Edge Invariants (`Frustration`, `Inhibitory`, `Antagonism`) | **75.6%** | 3,838 |
-| Non-Hub Walk Weight Attenuation (`Deceleration`) | **15.5%** | 786 |
-| Self-Avoiding Walk Terminal Strength (`DeadEndCrash`) | **8.9%** | 451 |
+| Signed / Negative-Edge Invariants (`Frustration`, `Inhibitory`, `Antagonism`) | **75.6%**[cite: 3] | 3,838[cite: 3] |
+| Non-Hub Walk Weight Attenuation (`Deceleration`) | **15.5%**[cite: 3] | 786[cite: 3] |
+| Self-Avoiding Walk Terminal Strength (`DeadEndCrash`) | **8.9%**[cite: 3] | 451[cite: 3] |
 
-- **Empirical Necessity of Signed Topology:** Across all topological descriptors, **75.6%** of total OOF Information Gain (`3,838` vs. `1,237` for positive-walk descriptors) originates from negative-edge and triadic-frustration families (`Frustration`, `Inhibitory`, `Antagonism`), quantitatively demonstrating that negative functional correlations carry primary discriminative structure in rs-fMRI.
-- **Complementary Geometry of Global and Local Signals:** Joint distribution analysis between `LINEAR_META_RISK_SCORE` and `Region_12_Deceleration` reveals an L-shaped manifold rather than a collinear diagonal: subjects with low global linear risk frequently exhibit elevated localized walk deceleration, enabling shallow gradient-boosted trees to capture non-linear sub-phenotypes inaccessible to linear classifiers alone.
+- **Empirical Necessity of Signed Topology:** Across all topological descriptors, **75.6%** of total OOF Information Gain (`3,838` vs. `1,237` for positive-walk descriptors) originates from negative-edge and triadic-frustration families (`Frustration`, `Inhibitory`, `Antagonism`), quantitatively demonstrating that negative functional correlations carry primary discriminative structure in rs-fMRI[cite: 3].
+- **Complementary Geometry of Global and Local Signals:** Joint distribution analysis between `LINEAR_META_RISK_SCORE` and `Region_12_Deceleration` reveals an L-shaped manifold rather than a collinear diagonal: subjects with low global linear risk frequently exhibit elevated localized walk deceleration, enabling shallow gradient-boosted trees to capture non-linear sub-phenotypes inaccessible to linear classifiers alone[cite: 11].
 
-![Empirical decision boundaries for linear, single-tree, and hybrid models](assets/figures/08_page11_empirical_decision_boundaries.jpg)
+![Empirical decision boundaries for linear, single-tree, and hybrid models](assets/figures/08_page11_empirical_decision_boundaries.png)
 
-*Figure 2. Empirical decision boundaries over actual cohort samples contrasting a standalone linear classifier (left), a single decision tree (center), and the regularized LightGBM hybrid model (right) across `LINEAR_META_RISK_SCORE` and `Region_12_Deceleration`.*
+*Figure 2. Empirical decision boundaries over actual cohort samples contrasting a standalone linear classifier (left), a single decision tree (center), and the regularized LightGBM hybrid model (right) across `LINEAR_META_RISK_SCORE` and `Region_12_Deceleration`[cite: 11, 13].*
 
 ### 5.3 Hypothesis Discipline & Ablation Summary
 
-- **Baseline vs. Hybrid V16:** Flat tabular models and unsigned graph baselines plateau at **0.60–0.63 ROC-AUC**; the V16 signed-graph hybrid achieves **0.7164 ± 0.0185 ROC-AUC** (+8.64 to +11.64 percentage points) under identical nested splits.
+- **Baseline vs. Hybrid V16:** Flat tabular models and unsigned graph baselines plateau at **0.60–0.63 ROC-AUC**; the V16 signed-graph hybrid achieves **0.7164 ± 0.0185 ROC-AUC** (+8.64 to +11.64 percentage points) under identical nested splits[cite: 12].
 - **Controlled Feature-Space Protection:** Candidate extensions (such as discrete step-survival walks) were audited via Bonferroni-corrected KS tests and Spearman orthogonality checks; because discrete walk truncation introduced zero-inflation and displaced top-ranked frustration/deceleration features under fixed `top_k=300` selection budgets, they were rejected to preserve parsimony and prevent nested-CV overfitting.
 
 ---
@@ -186,7 +186,7 @@ The included sample file (`data/sample_connectomes.csv`, 7.72 MiB, 0 missing val
 
 ## 7. Limitations & Future Directions
 
-1. **Methodological Benchmark vs. Clinical Utility:** A 0.7164 ROC-AUC on resting-state connectivity alone demonstrates statistically robust signal recovery in a sub-noise regime, not standalone clinical diagnostic readiness.
+1. **Methodological Benchmark vs. Clinical Utility:** A 0.7164 ROC-AUC on resting-state connectivity alone demonstrates statistically robust signal recovery in a sub-noise regime, not standalone clinical diagnostic readiness[cite: 12].
 2. **Static Undirected Graph Assumption:** Pearson correlation matrices are symmetric ($W = W^\top$); greedy-walk descriptors (`Deceleration`, `DeadEndCrash`) characterize static correlation topography rather than directed effective connectivity or temporal BOLD propagation.
 3. **Anatomical Mapping:** Because ROI indices `0–199` were evaluated blind to parcellation metadata, projecting top-ranked vertices (`ROI 12, 163, 138, 1, 22, 36`) onto standard functional atlases (e.g., Schaefer-200 / Yeo 7-Network parcellation) is the immediate next step to link triadic frustration with large-scale functional network anti-correlations.
 4. **Multi-Site Harmonization:** Evaluating cross-scanner transportability (e.g., via fold-contained ComBat harmonization and leave-one-site-out validation) is required before external deployment.
