@@ -1,0 +1,10 @@
+# Complete Data Audit — Visual & Quantitative Summary (n = 1,213, p = 19,900)
+
+This folder contains the 6 deduplicated, publication-grade empirical audit figures generated from the full labeled cohort (`Control n = 382`, `ADHD n = 831`, `p = 19,900` continuous Pearson correlation edges):
+
+1. **`01_univariate_collapse_and_snr.png`**: Cohort mean connectomes (`Control` vs. `ADHD`), edge-level noise floor (`mean SD = 0.0413`, `19.7x` larger than mean shift `|Δr| = 0.0021`), and univariate effect-size collapse (`max |Cohen's d| = 0.264`, `0 / 19,900` Bonferroni and BH-FDR survivors).
+2. **`02_spectral_and_marchenko_pastur.png`**: Subject-level eigenspectrum (`λ₁ = 2.00 ± 0.02`, Participation Ratio `142.2 ± 4.8 / 200`), cohort covariance spectrum vs. Marchenko–Pastur bulk noise edge (`90 modes > noise`), and cumulative PCA variance (`Top-10 PCs: 2.5%`, `Top-100 PCs: 16.3%`).
+3. **`03_manifold_overlap_and_idiosyncrasy.png`**: Stratified pairwise subject Pearson correlation (`mean r = 0.161`, `R² = 0.026`), Euclidean distance concentration in `R^19900` (`contrast ratio = 0.1577 SD`), and unsupervised raw edge-space projection (`PC1 0.51%` vs. `PC2 0.33%`).
+4. **`04_signed_cancellation_and_spinglass.png`**: Unsigned node strength (`mean = 6.92`) vs. net signed strength (`mean = 0.89`), demonstrating `87.1%` magnitude cancellation (`r = -0.118`, `47.38%` negative edges), and global triadic frustration (`Control: 48.93% ± 0.53%`, `ADHD: 48.81% ± 0.38%`) vs. sign-shuffled null (`50.00% ± 0.04%`).
+5. **`05_hub_topology_and_degree_heterogeneity.png`**: Node-level excitatory (`s_i^+`) vs. inhibitory (`s_i^-`) strength asymmetry across all 200 ROIs and hub strength vs. inter-subject volatility (`r = 0.376`).
+6. **`06_information_theoretic_and_linear_ceiling.png`**: Edge-wise Mutual Information with `ADHD_Outcome` (`mean = 0.00525 nats` vs. null `0.00476 nats`) and empirical benchmark ROC-AUC ceiling (`Best single edge = 0.5704`, `Flat Logistic L2 = 0.5381`, `V16 Signed-Graph Hybrid 5x5 Nested CV = 0.7164`).

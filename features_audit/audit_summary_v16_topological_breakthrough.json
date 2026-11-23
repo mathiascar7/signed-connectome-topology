@@ -1,0 +1,130 @@
+{
+  "audit_runtime_seconds": 25.576,
+  "cohort_size": 1213,
+  "raw_connectome_edges": 19900,
+  "v16_topological_invariants": 1000,
+  "statistical_breakthrough": {
+    "raw_bh_fdr_05_survivors": 0,
+    "v16_bh_fdr_05_survivors": 727,
+    "v16_bonferroni_05_survivors": 123,
+    "raw_lambda_gc_inflation": 1.0503,
+    "v16_lambda_gc_inflation": 19.6675,
+    "information_density_gain_multiplier": 1.553,
+    "positive_pairwise_synergy_pct_top12": 100.0,
+    "spectral_participation_ratio_raw": 610.3,
+    "spectral_participation_ratio_v16": 5.66
+  },
+  "linear_meta_risk_score_gain": null,
+  "top_10_by_model_gain": [
+    {
+      "feature": "Region_49_Frustration",
+      "family": "Frustration",
+      "roi": 49,
+      "information_gain": 383.96232502599184,
+      "cohen_d": -0.26751877348387004,
+      "ks_stat": 0.16145626602654972,
+      "wasserstein_1": 0.27449264296844317,
+      "jsd_bits": 0.03839623250259919,
+      "q_fdr": 0.0003888336209350036
+    },
+    {
+      "feature": "Region_149_Frustration",
+      "family": "Frustration",
+      "roi": 149,
+      "information_gain": 377.28733668578667,
+      "cohen_d": -0.28933940033074756,
+      "ks_stat": 0.140239791835989,
+      "wasserstein_1": 0.29818763350758515,
+      "jsd_bits": 0.037728733668578665,
+      "q_fdr": 0.00020828161765628058
+    },
+    {
+      "feature": "Region_127_Frustration",
+      "family": "Frustration",
+      "roi": 127,
+      "information_gain": 377.23132472681954,
+      "cohen_d": -0.2825354399454224,
+      "ks_stat": 0.13667063589569117,
+      "wasserstein_1": 0.2840703072894576,
+      "jsd_bits": 0.037723132472681956,
+      "q_fdr": 0.00027172601731317094
+    },
+    {
+      "feature": "Region_17_Frustration",
+      "family": "Frustration",
+      "roi": 17,
+      "information_gain": 365.7055028806608,
+      "cohen_d": -0.33089592694386666,
+      "ks_stat": 0.17199047385034116,
+      "wasserstein_1": 0.33949751917924226,
+      "jsd_bits": 0.03657055028806608,
+      "q_fdr": 9.764652612675342e-05
+    },
+    {
+      "feature": "Region_147_Frustration",
+      "family": "Frustration",
+      "roi": 147,
+      "information_gain": 351.3383613018671,
+      "cohen_d": -0.28732381090429054,
+      "ks_stat": 0.12868807530194493,
+      "wasserstein_1": 0.2951328943355693,
+      "jsd_bits": 0.03513383613018671,
+      "q_fdr": 0.00020674195537422537
+    },
+    {
+      "feature": "Region_174_Frustration",
+      "family": "Frustration",
+      "roi": 174,
+      "information_gain": 349.1802892122292,
+      "cohen_d": -0.2722606078806738,
+      "ks_stat": 0.13997832674945343,
+      "wasserstein_1": 0.27957315340501676,
+      "jsd_bits": 0.03491802892122292,
+      "q_fdr": 0.00036691500636951797
+    },
+    {
+      "feature": "Region_10_Frustration",
+      "family": "Frustration",
+      "roi": 10,
+      "information_gain": 343.66805417555867,
+      "cohen_d": -0.2846188660119377,
+      "ks_stat": 0.16582241795351593,
+      "wasserstein_1": 0.29614194459600424,
+      "jsd_bits": 0.034366805417555865,
+      "q_fdr": 0.0002152290189908463
+    },
+    {
+      "feature": "Region_186_Frustration",
+      "family": "Frustration",
+      "roi": 186,
+      "information_gain": 343.4437326442997,
+      "cohen_d": -0.24823047268558132,
+      "ks_stat": 0.15812022353689803,
+      "wasserstein_1": 0.2627931005815382,
+      "jsd_bits": 0.03434437326442997,
+      "q_fdr": 0.0007231058315609493
+    },
+    {
+      "feature": "Region_119_Frustration",
+      "family": "Frustration",
+      "roi": 119,
+      "information_gain": 337.0197687528713,
+      "cohen_d": -0.30867783462152176,
+      "ks_stat": 0.14621253646335397,
+      "wasserstein_1": 0.32229984533856154,
+      "jsd_bits": 0.03370197687528713,
+      "q_fdr": 0.00017872215339113812
+    },
+    {
+      "feature": "Region_27_Frustration",
+      "family": "Frustration",
+      "roi": 27,
+      "information_gain": 335.42066714895674,
+      "cohen_d": -0.26738227281202936,
+      "ks_stat": 0.1466756131828807,
+      "wasserstein_1": 0.2767238242445468,
+      "jsd_bits": 0.03354206671489567,
+      "q_fdr": 0.00038194466804154147
+    }
+  ]
+}

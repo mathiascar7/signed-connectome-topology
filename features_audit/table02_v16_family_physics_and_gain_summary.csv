@@ -1,0 +1,6 @@
+family,n_features,bonferroni_survivors,bh_fdr_05_survivors,mean_abs_cohen_d,max_ks_stat,mean_wasserstein_1,mean_jsd_bits,total_information_gain
+Frustration,200,49,200,0.2414,0.1779,0.2501,0.02228,44559.71
+Antagonism,200,25,164,0.1871,0.1627,0.1939,0.01684,33689.4
+DeadEndCrash,200,13,177,0.1876,0.1552,0.1957,0.01661,33221.35
+Deceleration,200,0,12,0.0619,0.1347,0.0808,0.01077,21546.96
+Inhibitory,200,36,174,0.203,0.1824,0.2115,0.01782,35634.58

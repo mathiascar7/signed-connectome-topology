@@ -1,207 +1,210 @@
-# Signed-Graph Topological Descriptors for Low-SNR rs-fMRI Connectome Classification
+# Higher-Order Topological Signatures in Functional Connectomes
 
-**A leakage-controlled hybrid architecture combining out-of-fold linear compression with non-Euclidean signed-graph invariants for ADHD-versus-control classification.**
+This repository contains an empirical audit of signed functional-connectivity edges and a set of 1,000 higher-order, ROI-level topological invariants for distinguishing ADHD from neurotypical controls.
 
-> **Institutional Context & Data Governance.** Developed as a methodological research collaboration with the **University of Florida (UF)**. Due to institutional IRB protocols and clinical data-use agreements, raw subject-level diagnostic labels remain private. This repository provides the complete deterministic feature-extraction engine, the zero-leakage nested cross-validation pipeline, and an anonymized 20-subject schema sample (`data/sample_connectomes.csv`) to verify end-to-end execution. Full validation artifacts are available to admissions committees and academic reviewers upon request.
+The full labeled audit covers **1,213 participants** (**382 controls**, **831 ADHD**) and **19,900 unique edges** among 200 cortical regions of interest (ROIs). Across five topological operator families, the audit reports **727 BH-FDR-significant invariants** at $q < 0.05$, compared with zero significant raw edges, and a mean out-of-fold ROC-AUC of **0.7164** in nested cross-validation.
 
----
+> **Dataset note:** [`sample_connectomes.csv`](sample_connectomes.csv) is a 20-participant sample with 19,900 edge columns and a participant identifier. It is not the full labeled analysis cohort and does not include an outcome column. Cohort-level statistics and model results below refer to the full audit artifacts.
 
-## Abstract & Executive Summary
+## Contents
 
-Resting-state functional MRI (rs-fMRI) classification in neurodevelopmental cohorts operates in an extreme high-dimensional, low-signal-to-noise regime ($p = 19,900$ edges, $n = 1,213$ subjects). Across cohorts, the mean absolute edge-weight shift between ADHD and neurotypical controls is **0.0021** (maximum single-edge shift **0.0154**), buried beneath a typical rs-fMRI physiological and scanner noise floor of $\approx 0.015$ ($\text{SNR} \approx 0.14$)[cite: 5, 22]. Under strict leakage-free validation, conventional flat/tabular classifiers and unsigned graph baselines plateau at **0.60–0.63 ROC-AUC**.
+- [Study overview](#study-overview)
+- [Repository contents](#repository-contents)
+- [Baseline edge-space audit](#baseline-edge-space-audit)
+- [Topological mechanisms](#topological-mechanisms)
+- [Statistical and information-theoretic results](#statistical-and-information-theoretic-results)
+- [Nested cross-validation architecture](#nested-cross-validation-architecture)
+- [Reproducibility artifacts](#reproducibility-artifacts)
 
-Rather than deploying over-parameterized black-box models that memorize $p \gg n$ noise, we challenge the standard neuroimaging convention of discarding negative correlations ($W_{ij} < 0$). Formulating connectome classification through **Structural Balance Theory** and **signed-graph walk dynamics**, we pair an out-of-fold (OOF) L2-regularized linear probability anchor with 1,000 deterministic node-level signed-graph descriptors refined by heavily regularized gradient-boosted trees (LightGBM). Our framework achieves **0.7164 ± 0.0185 mean outer-fold ROC-AUC** in **5×5 nested cross-validation**—an **+8.64 to +11.64 percentage-point gain** over conventional baselines without demographic, behavioral, or anatomical atlas priors[cite: 12, 18].
+## Study overview
 
----
+Each participant is represented by a signed functional-connectivity matrix over 200 cortical ROIs. Its 19,900 unique off-diagonal upper-triangular Pearson correlations form the raw edge feature space. The V16 audit evaluates five operators at every ROI, yielding 1,000 topological invariants:
 
-## 1. Problem Formulation: Breaking the Sub-Noise & $p \gg n$ Barrier
+| Operator family | Network interpretation |
+| :--- | :--- |
+| **Frustration** | Signed triadic consistency and frustrated local circuits |
+| **Inhibitory** | Inhibitory signed-load structure |
+| **Antagonism** | Antagonistic signed interactions |
+| **DeadEndCrash** | Directional signal arrival without effective onward transmission |
+| **Deceleration** | Attenuated hub propagation and lower-weight multi-hop routing |
 
-- **Input Representation:** Each subject $m \in \{1, \dots, 1213\}$ is represented exclusively by a symmetric, zero-diagonal $200 \times 200$ whole-brain Pearson correlation matrix $W^{(m)} = (W^{(m)})^\top$, flattened into its strict upper triangle of $p = \binom{200}{2} = 19,900$ continuous edge features (`0throw_1thcolumn` through `198throw_199thcolumn`).
-- **Blind Experimental Protocol:** All demographic covariates (`age`, `sex`, `site`, `site_id`), clinical questionnaires, and anatomical parcellation labels are stripped prior to feature extraction. ROI indices $\{0, \dots, 199\}$ are treated strictly as anonymous graph vertices.
-- **Why Standard Pipelines Fail:** Cohort-level edge differences exhibit a mean absolute deviation of $0.0021$ and a maximum single-edge deviation of $0.0154$—an order of magnitude smaller than individual variance[cite: 5, 22]. Standard models either average away localized alterations or overfit site-specific noise.
+The baseline audit characterizes the raw-edge signal and its geometry. The topological audit then tests whether higher-order, localized network summaries expose cohort structure that is not apparent in first-order mean connectomes or individual edges.
 
-![Mean control and ADHD connectomes and overlapping edge-weight distributions](assets/figures/02_page03_mean_connectomes_overlap.png)
+## Repository contents
 
-*Figure 1. Empirical cohort-averaged connectomes (Panels A–B) and overlapping edge-weight density distributions (Panel C) illustrating the $\Delta\mu = 0.0021$ mean shift and $\max \vert{}\Delta r\vert{} = 0.0154$ ceiling that define the sub-noise classification regime[cite: 5, 13, 22].*
+| Path | Description |
+| :--- | :--- |
+| [`sample_connectomes.csv`](sample_connectomes.csv) | 20-participant sample of 19,900 functional-connectivity edge features |
+| [`data_audit/`](data_audit/) | Six baseline figures auditing raw edges, signed networks, spectral structure, and linear classification |
+| [`topology_visualizations/`](topology_visualizations/) | Five figures illustrating mean-connectome overlap and proposed biophysical mechanisms |
+| [`features_audit/`](features_audit/) | Six quantitative figures, two audit tables, and a machine-readable audit summary |
 
----
+## Baseline edge-space audit
 
-## 2. Conceptual Shift & Engineering Matrix
+The baseline figures show the raw correlation-edge landscape before topological feature extraction. The full-cohort audit reports a mean edge shift of $|\Delta r| = 0.0021$ against a mean edge standard deviation of 0.0413, with no raw edge surviving Bonferroni or BH-FDR correction. Raw-edge classification is correspondingly limited: the best single edge reaches ROC-AUC 0.5704, and flat L2 logistic regression reaches 0.5381.
 
-Standard connectomic pipelines routinely apply positive-only thresholds ($W^+ = \max(W, 0)$) or absolute-value transforms ($\vert{}W\vert{}$) so that classical graph metrics remain well-defined. Mathematically, both operations erase **triadic sign consistency** ($W_{ij}W_{jk}W_{ik} < 0$) and **local antagonistic coupling**, discarding **75.6%** of the discriminative topological Information Gain recovered by our architecture[cite: 3, 20].
+### Figure 1 — Univariate signal and noise
 
-| Bottleneck in rs-fMRI Modeling | Failure Mode of Conventional Pipelines | Engineered Architectural Solution |
-| :--- | :--- | :--- |
-| **Severe Dimensionality ($p = 19,900 \gg n = 1,213$)** | Unconstrained splits and dense neural layers overfit spurious edge fluctuations. | Fold-contained two-sample Kolmogorov–Smirnov (KS) filtering (`top_k=500` raw edges; `top_k=300` graph descriptors) paired with strong L2/L1 regularization. |
-| **Sub-Noise Edge Shifts ($\Delta\mu \approx 0.0021$)**[cite: 5, 22] | Single-edge statistics lack statistical power; whole-brain global averages wash out localized circuit alterations. | Node-level topological aggregation mapping 19,900 noisy edges into 1,000 deterministic structural-balance and greedy-walk invariants (5 per ROI). |
-| **Loss of Anti-Correlations ($W_{ij} < 0$)** | Positive-only thresholding and $\Vert{}W\Vert{}$ transforms erase functional segregation and triadic frustration. | Explicit decomposition into $W^+ = \max(W, 0)$ and $W^- = \min(W, 0)$, quantifying triadic frustration and negative-strength concentration. |
-| **Global Linear vs. Local Non-Linear Geometry** | Linear models miss threshold interactions; decision trees poorly approximate dense linear combinations. | Two-stage nested stacking: an OOF L2 logistic regression probability anchor supplies global linear risk to LightGBM alongside localized graph invariants. |
+![Raw connectome means, edge-level signal-to-noise ratio, and univariate effect-size distribution](data_audit/01_univariate_collapse_and_snr.png)
 
----
+*Control and ADHD mean connectomes are highly similar. The edge-level noise floor is 19.7 times the mean shift, and none of the 19,900 individual edges survives multiple-testing correction.*
 
-## 3. Mathematical Definition & Topological Intuition of Signed-Graph Descriptors
+### Figure 2 — Spectral structure and Marchenko–Pastur comparison
 
-For each subject matrix $W \in \mathbb{R}^{200 \times 200}$ with zero diagonal ($W_{ii} = 0$), we decompose edges into positive and negative components and define positive node strength $s_i^+$:
+![Subject-level eigenspectrum, covariance spectrum versus Marchenko–Pastur bulk, and cumulative PCA variance](data_audit/02_spectral_and_marchenko_pastur.png)
 
-$$W^+ = \max(W, 0), \qquad W^- = \min(W, 0), \qquad s_i^+ = \sum_{j=1}^{200} W_{ij}^+$$
+*The subject-level leading eigenvalue is $2.00 \pm 0.02$, with a participation ratio of $142.2 \pm 4.8$ out of 200. Ninety covariance modes exceed the estimated noise edge; the top 10 and top 100 PCs explain 2.5% and 16.3% of variance, respectively.*
 
-Five deterministic invariants are extracted per vertex $i \in \{0, \dots, 199\}$ without access to target labels $y$. *(Note: Schematic diagrams below use synthetic toy weights and illustrative node labels to visualize the mathematical graph operators on undirected correlation matrices $W$).*
+### Figure 3 — Manifold overlap and subject idiosyncrasy
 
-### 3.1 Signed Triadic Imbalance (`Region_i_Frustration`)
-Under Heider–Harary structural balance theory, a closed triad $(i, j, k)$ is frustrated when the product of its edge weights is strictly negative ($T_{jk}^{(i)} = W_{ij}W_{jk}W_{ik} < 0$)[cite: 6, 23]. For vertex $i$, total frustration magnitude is defined as:
+![Pairwise subject similarity, distance concentration, and raw edge-space projection](data_audit/03_manifold_overlap_and_idiosyncrasy.png)
 
-$$F_i = \frac{1}{2} \sum_{j=1}^{200} \sum_{k=1}^{200} \lvert T_{jk}^{(i)} \rvert \cdot \mathbb{I}\!\left(T_{jk}^{(i)} < 0\right)$$
+*Pairwise subject correlation averages $r=0.161$ ($R^2=0.026$); Euclidean distances in 19,900-dimensional edge space have a contrast ratio of 0.1577 SD. The first two unsupervised PCs explain 0.51% and 0.33% of variance.*
 
-![Schematic illustration of signed triadic balance versus frustration](assets/figures/03_page04_triadic_frustration.png)
+### Figure 4 — Signed cancellation and global frustration
 
-*Figure 2A. Schematic illustration contrasting a sign-consistent triad ($W_{ij}W_{jk}W_{ik} > 0$, left) with a frustrated triad ($W_{ij}W_{jk}W_{ik} < 0$, right)[cite: 6, 13, 23].*
+![Unsigned and signed node strength, signed-edge cancellation, and global triadic frustration](data_audit/04_signed_cancellation_and_spinglass.png)
 
-### 3.2 Total Negative Strength (`Region_i_Inhibitory`) & Peak Negative Coupling (`Region_i_Antagonism`)
-Let $w_{i,(1)}^- \le w_{i,(2)}^- \le \dots \le w_{i,(d_i^-)}^- < 0$ denote the sorted negative correlation weights incident to vertex $i$. We quantify both cumulative negative incidence ($I_i$) and top-$k$ focal anti-correlation concentration ($A_i$, $k = 5$):
+*Unsigned node strength averages 6.92, compared with net signed strength of 0.89, corresponding to 87.1% magnitude cancellation. The negative-edge fraction is 47.38%; global frustration is 48.93% ± 0.53% in controls and 48.81% ± 0.38% in ADHD, against a sign-shuffled null of 50.00% ± 0.04%.*
 
-$$I_i = \sum_{j=1}^{200} \lvert W_{ij}^- \rvert, \qquad A_i = \sum_{m=1}^{\min(5, d_i^-)} \left\lvert w_{i,(m)}^- \right\rvert$$
+### Figure 5 — Hub topology and degree heterogeneity
 
-![Schematic illustration of negative correlation accumulation at a vertex](assets/figures/06_page09_inhibitory_mass.png)
+![Excitatory and inhibitory node strength across ROIs and hub strength versus subject-level volatility](data_audit/05_hub_topology_and_degree_heterogeneity.png)
 
-*Figure 2B. Schematic illustration of negative correlation accumulation ($I_i = \sum_j \lvert W_{ij}^- \rvert$) around a vertex with sparse versus dense anti-correlations[cite: 9, 13, 15].*
+*Node-level excitatory and inhibitory strength are compared across all 200 ROIs. Hub strength is positively associated with inter-subject volatility ($r=0.376$).*
 
-### 3.3 Non-Hub Walk Weight Attenuation (`Region_i_Deceleration`)
-Let $\mathcal{H} = \{v : s_v^+ \ge P_{95}(s^+)\}$ be the top 5% high-strength hubs, and let $\widetilde{W}^+$ denote $W^+$ with all rows and columns in $\mathcal{H}$ zeroed out. For $i \notin \mathcal{H}$, a greedy non-backtracking max-weight traversal $v_0 = i \to v_1 \to \dots \to v_L$ ($L \le 200$ or termination upon revisiting a vertex) accumulates step-to-step weight drops ($D_i = 0$ for $i \in \mathcal{H}$):
+### Figure 6 — Information and raw-edge classification benchmarks
 
-$$D_i = \sum_{t=1}^{L} \max\left(0,\; \widetilde{W}_{v_{t-1}v_t}^+ - \widetilde{W}_{v_t v_{t+1}}^+\right)$$
+![Edge-wise mutual information and ROC-AUC benchmarks for raw and topological features](data_audit/06_information_theoretic_and_linear_ceiling.png)
 
-![Schematic illustration of greedy weight attenuation along non-hub paths](assets/figures/04_page06_kinetic_flow_deceleration.png)
+*Mean edge-wise mutual information with ADHD outcome is 0.00525 nats versus a null value of 0.00476 nats. ROC-AUC benchmarks are 0.5704 for the best single edge, 0.5381 for flat L2 logistic regression, and 0.7164 for the V16 signed-graph hybrid under 5-fold nested cross-validation.*
 
-*Figure 2C. Schematic illustration of step-to-step weight attenuation along greedy positive correlation paths when primary high-strength hubs are bypassed[cite: 7, 13].*
+## Topological mechanisms
 
-### 3.4 Self-Avoiding Walk Basin Strength (`Region_i_DeadEndCrash`)
-Starting at $v_0 = i$, a self-avoiding greedy traversal iteratively transitions to $v_{t+1} = \arg\max_{u \notin \{v_0,\dots,v_t\}} W_{v_t u}^+$ while $\max_u W_{v_t u}^+ > 0$, terminating at vertex $v_{\text{term}}$ when no unvisited positive neighbor remains:
+The following conceptual and empirical visualizations motivate the five operators and show why regional signed and directional structure can add information beyond mean edge values.
 
-$$C_i = s_{v_{\text{term}}}^+$$
+### Figure 7 — Mean-connectome overlap
 
-![Schematic illustration of self-avoiding greedy traversal termination](assets/figures/05_page07_dead_end_crash.png)
+![Control and ADHD mean connectivity matrices with overlapping edge-weight distributions](topology_visualizations/fig01_mean_connectomes_overlap.png)
 
-*Figure 2D. Schematic illustration of a self-avoiding greedy walk on $W^+$ terminating at a low-outbound-strength boundary vertex ($C_i = s_{v_{\text{term}}}^+$)[cite: 8, 13, 14].*
+*Panels A and B show the 200 × 200 group-mean functional-connectivity matrices; Panel C compares their edge-weight densities. The mean absolute matrix difference is 0.0021 and the maximum absolute difference is 0.0154, motivating higher-order feature extraction.*
 
-> **Methodological Scope:** Because $W$ is a symmetric, undirected Pearson correlation matrix over anonymous ROIs, these invariants characterize static topological balance, negative-correlation concentration, and weight-decay structure on correlation weights—not directed causal signaling or anatomical pathways.
+### Figure 8 — Triadic frustration
 
----
+![Balanced and frustrated signed microcircuit schematics](topology_visualizations/fig02_mechanism_triadic_frustration.png)
 
-## 4. Hybrid Training Architecture & Zero-Leakage 5×5 Nested Cross-Validation
+*A balanced triad has a positive signed-edge product, for example $(-0.6)(-0.5)(0.7)=+0.21$. A frustrated triad has a negative product, for example $(0.8)(0.6)(-0.7)=-0.33$, representing local phase conflict in the signed network.*
 
-In high-dimensional neuroimaging ($p \gg n$), performing feature selection, scaling, or hyperparameter tuning across the full dataset introduces severe optimistic bias. Our training architecture combines **global linear compression** with **non-linear topological refinement**, enforcing strict separation across every nested boundary:
+### Figure 9 — Kinetic flow deceleration
 
-1. **Global Linear Anchor (`LINEAR_META_RISK_SCORE`):** Inside each training partition, `KSTopFeatureSelector(top_k=500)` and `StandardScaler` feed an L2-regularized logistic regression ($C = 0.01$) via internal out-of-fold cross-validation (`cross_val_predict`), compressing high-dimensional edge covariance into a single calibrated probability anchor in $[0, 1]$ (`OOF Information Gain: 3,129.29`)[cite: 10, 16].
-2. **Outer Loop (`5-fold StratifiedKFold`):** Partitions subjects into 80% outer training and 20% untouched outer test folds. No test-fold sample influences feature ranking, scaling, linear meta-feature weights, or tree hyperparameters.
-3. **Inner Loop (`5-fold StratifiedKFold`):** Within each outer training set, `KSTopFeatureSelector(top_k=300)` selects the top topological descriptors strictly on each inner training split and concatenates them with the 3-fold internal OOF linear anchor (`301` features total).
-4. **Constrained Bayesian Optimization (`Optuna TPE`, 40 trials/fold):** Tunes shallow, heavily regularized LightGBM trees (`max_depth` $\in [3, 7]$, `num_leaves` $\in [8, 32]$, `min_child_samples` $\in [15, 60]$, `reg_alpha`, `reg_lambda` $\in [1.0, 20.0]$, `path_smooth` $\in [0.0, 15.0]$) solely on mean inner-validation ROC-AUC.
+![Direct hub propagation compared with attenuated hub flow and a multi-hop detour](topology_visualizations/fig03_mechanism_kinetic_flow_deceleration.png)
 
-![Hybrid architecture linear meta-anchor compression](assets/figures/07_page10_linear_meta_risk_score.png)
+*The schematic contrasts direct high-weight propagation through Region 12 ($W=0.85 \rightarrow 0.80$) with a decelerated route in which hub attenuation ($W=0.15$) diverts flow through a longer, lower-weight path involving Region 163 ($W=0.40 \rightarrow 0.35$).*
 
-*Figure 3. Two-stage hybrid compression architecture: Panel A illustrates dimensionality reduction from 19,900 raw edges to the OOF L2 linear probability anchor (`LINEAR_META_RISK_SCORE`), and Panel B schematically depicts how LightGBM refines the linear baseline separation using localized signed-graph descriptors[cite: 10, 13, 16].*
-
-```mermaid
-flowchart TD
-    A["Full Labeled Cohort (n = 1,213, p = 19,900)"] --> B["Outer 5-Fold StratifiedKFold"]
-    B --> C["Outer Train Split (80%)"]
-    B --> H["Held-Out Outer Test Fold (20%)"]
-    C --> D["Inner 5-Fold StratifiedKFold"]
-    D --> E["3-Fold Internal OOF Logistic Anchor (top_k=500 edges, L2 C=0.01)"]
-    D --> F["KS Selector (top_k=300 Signed-Graph Features) on Inner Train"]
-    E --> G["Optuna TPE (40 Trials): Maximize Mean Inner-Val ROC-AUC"]
-    F --> G
-    C --> I["5-Fold OOF Logistic Anchor + KS top_k=300 Fitted on Full Outer Train"]
-    G --> M["Train Best Regularized LightGBM on 301 Outer-Train Features"]
-    I --> M
-    M --> J["Single Unbiased Evaluation on Held-Out Outer Test Fold"]
-    H --> J
-```
-
----
-
-## 5. Empirical Results & Structural Findings
-
-### 5.1 Outer-Fold Generalization Performance
-
-| Outer Fold | Held-Out Test ROC-AUC |
-| :---: | :---: |
-| Fold 1 | 0.7259[cite: 12, 18] |
-| Fold 2 | 0.7212[cite: 12, 18] |
-| Fold 3 | 0.6961[cite: 12, 18] |
-| Fold 4 | 0.7441[cite: 12, 18] |
-| Fold 5 | 0.6948[cite: 12, 18] |
-| **Mean ± SD** | **0.7164 ± 0.0185** |
-
-<details>
-<summary><strong>View raw 5×5 Nested CV execution log</strong></summary>
-<br>
-<img src="assets/figures/09_page13_nested_cv_console_output.png" alt="Raw 5x5 Nested CV execution log" width="100%">
-</details>
-
-### 5.2 Out-of-Fold Feature Importance & Dominance of Negative Correlations
-
-| Rank | Feature | Topological Family | OOF Information Gain |
-| :---: | :--- | :--- | :---: |
-| 1 | `LINEAR_META_RISK_SCORE` | Global L2 Linear Anchor | 3,129.29 |
-| 2 | `Region_12_Deceleration` | Non-Hub Walk Attenuation | 412.44 |
-| 3 | `Region_163_Deceleration` | Non-Hub Walk Attenuation | 374.16 |
-| 4 | `Region_138_Frustration` | Signed Triadic Imbalance | 299.23 |
-| 5 | `Region_1_Frustration` | Signed Triadic Imbalance | 263.90 |
-| 6 | `Region_22_Frustration` | Signed Triadic Imbalance | 242.75 |
-| 7 | `Region_36_Inhibitory` | Total Negative Strength | 198.26 |
-| 8 | `Region_100_Frustration` | Signed Triadic Imbalance | 178.02 |
-| 9 | `Region_66_DeadEndCrash` | Walk Basin Strength | 177.28 |
-| 10 | `Region_106_Antagonism` | Peak Negative Coupling | 174.64 |
-
-| Topological Descriptor Group | Share of Topological Gain | OOF Information Gain |
-| :--- | :---: | :---: |
-| Signed / Negative-Edge Invariants (`Frustration`, `Inhibitory`, `Antagonism`) | **75.6%**[cite: 3, 20] | 3,838[cite: 3, 20] |
-| Non-Hub Walk Weight Attenuation (`Deceleration`) | **15.5%**[cite: 3, 20] | 786[cite: 3, 20] |
-| Self-Avoiding Walk Terminal Strength (`DeadEndCrash`) | **8.9%**[cite: 3, 20] | 451[cite: 3, 20] |
-
-- **Empirical Necessity of Signed Topology:** Across all topological descriptors, **75.6%** of total OOF Information Gain (`3,838` vs. `1,237` for positive-walk descriptors) originates from negative-edge and triadic-frustration families (`Frustration`, `Inhibitory`, `Antagonism`), quantitatively demonstrating that negative functional correlations carry primary discriminative structure in rs-fMRI[cite: 3, 20].
-- **Complementary Geometry of Global and Local Signals:** Joint distribution analysis between `LINEAR_META_RISK_SCORE` and `Region_12_Deceleration` reveals an L-shaped manifold rather than a collinear diagonal: subjects with low global linear risk frequently exhibit elevated localized walk deceleration, enabling shallow gradient-boosted trees to capture non-linear sub-phenotypes inaccessible to linear classifiers alone[cite: 11, 17].
-
-![Empirical decision boundaries for linear, single-tree, and hybrid models](assets/figures/08_page11_empirical_decision_boundaries.png)
-
-*Figure 4. Empirical decision boundaries over actual cohort samples contrasting a standalone linear classifier (left), a single decision tree (center), and the regularized LightGBM hybrid model (right) across `LINEAR_META_RISK_SCORE` and `Region_12_Deceleration`[cite: 11, 13, 17].*
-
-### 5.3 Hypothesis Discipline & Ablation Summary
-
-- **Baseline vs. Hybrid V16:** Flat tabular models and unsigned graph baselines plateau at **0.60–0.63 ROC-AUC**; the V16 signed-graph hybrid achieves **0.7164 ± 0.0185 ROC-AUC** (+8.64 to +11.64 percentage points) under identical nested splits[cite: 12, 18].
-- **Controlled Feature-Space Protection:** Candidate extensions (such as discrete step-survival walks) were audited via Bonferroni-corrected KS tests and Spearman orthogonality checks; because discrete walk truncation introduced zero-inflation and displaced top-ranked frustration/deceleration features under fixed `top_k=300` selection budgets, they were rejected to preserve parsimony and prevent nested-CV overfitting.
-
----
-
-## 6. Repository Structure & Verification Schema
-
-```text
-├── data/
-│   └── sample_connectomes.csv        # 20 anonymized subjects × 19,901 columns (7.72 MiB, 0 NaNs)
-├── src/
-│   ├── features.py                   # Deterministic 5-family signed-graph extractor (200 × 200 W)
-│   ├── selection.py                  # Zero-leakage KSTopFeatureSelector transformer
-│   └── train_nested_cv.py            # 5×5 Nested CV + OOF stacking + Optuna TPE pipeline
-└── assets/
-    └── figures/                      # Empirical connectome, mechanism schematic & CV log figures
-```
-
-The included sample file (`data/sample_connectomes.csv`, 7.72 MiB, 0 missing values) verifies input formatting (`participant_id` plus 19,900 upper-triangle edges; Pearson $r \in [-0.2845, 0.4885]$, $\mu = 0.0046$, $\sigma = 0.0467$):
-
-| Sample Row | `0throw_1thcolumn` | `0throw_2thcolumn` | `198throw_199thcolumn` |
-| :---: | :---: | :---: | :---: |
-| 1 | 0.093473 | 0.146902 | 0.143372 |
-| 2 | 0.029580 | 0.179323 | 0.138200 |
-| 3 | -0.051580 | 0.139734 | 0.162162 |
-
-- **Environment:** Python 3.10+, `numpy`, `pandas`, `scipy`, `scikit-learn`, `lightgbm`, `optuna`, `joblib`.
-- **Determinism:** All random seeds (`RANDOM_STATE = 42`), `StratifiedKFold` partitions, `TPESampler(seed=42)`, and graph traversals are deterministic across outer and inner loops.
-
----
-
-## 7. Limitations & Future Directions
-
-1. **Methodological Benchmark vs. Clinical Utility:** A 0.7164 ROC-AUC on resting-state connectivity alone demonstrates statistically robust signal recovery in a sub-noise regime, not standalone clinical diagnostic readiness[cite: 12, 18].
-2. **Static Undirected Graph Assumption:** Pearson correlation matrices are symmetric ($W = W^\top$); greedy-walk descriptors (`Deceleration`, `DeadEndCrash`) characterize static correlation topography rather than directed effective connectivity or temporal BOLD propagation.
-3. **Anatomical Mapping:** Because ROI indices `0–199` were evaluated blind to parcellation metadata, projecting top-ranked vertices (`ROI 12, 163, 138, 1, 22, 36`) onto standard functional atlases (e.g., Schaefer-200 / Yeo 7-Network parcellation) is the immediate next step to link triadic frustration with large-scale functional network anti-correlations.
-4. **Multi-Site Harmonization:** Evaluating cross-scanner transportability (e.g., via fold-contained ComBat harmonization and leave-one-site-out validation) is required before external deployment.
+### Figure 10 — Dead-end crash and information sinkholes
+
+![Continuous relay propagation contrasted with an inbound signal blocked at an information sinkhole](topology_visualizations/fig04_mechanism_dead_end_crash.png)
+
+*The control schematic shows relay propagation ($W=0.70 \rightarrow 0.75$). The ADHD schematic shows a strong excitatory inbound signal ($W=0.65$) terminating at a sinkhole with inhibitory outbound coupling ($W=-0.50$).*
+
+### Figure 11 — Region 66 directional asymmetry
+
+![Inbound and outbound signal distributions at the Region 66 working-memory hub](topology_visualizations/fig05_region66_sinkhole_directional_asymmetry.png)
+
+*The empirical distribution contrasts positive arrival energy at Region 66 (inbound signal near $W=0.65$) with exit pathways at or below the zero-transmission boundary.*
+
+## Statistical and information-theoretic results
+
+### Statistical breakthrough
+
+Across 19,900 raw edges, no feature survives BH-FDR correction. Across the 1,000 V16 invariants, 123 survive Bonferroni correction at $\alpha=0.05$, 727 survive BH-FDR at $q<0.05$, and 786 survive at $q<0.10$. The invariant family has genomic-control inflation $\lambda_{\mathrm{GC}}=19.67$, versus 1.05 for raw edges, and a 1.553× information-density gain.
+
+### Figure 12 — Statistical wall, QQ plots, and FDR survival
+
+![Topological Manhattan plot, raw-edge and invariant QQ plots, and significant-feature counts](features_audit/fig01_statistical_wall_breakthrough_and_fdr.png)
+
+*Panel A maps invariant significance across ROIs and operator families with Bonferroni and BH-FDR thresholds. Panel B compares QQ plots for 19,900 raw edges ($\lambda_{\mathrm{GC}}=1.05$) and 1,000 V16 invariants ($\lambda_{\mathrm{GC}}=19.67$). Panel C shows the increase from zero raw-edge discoveries to 123 Bonferroni and 727 BH-FDR discoveries at the stated thresholds.*
+
+### Figure 13 — Nonlinear synergy and the gain paradox
+
+![Linear effect size versus nonlinear information gain and Wasserstein distance versus information gain](features_audit/fig02_nonlinear_synergy_and_gain_paradox.png)
+
+*Panel A shows that modest univariate Cohen’s $d$ can coexist with high model information gain when a feature is conditioned on network state. Panel B compares Wasserstein-1 distance with information gain across the five operator families.*
+
+### Figure 14 — Multivariate interaction information
+
+![Top-12 invariant interaction-information heatmap and distribution of pairwise synergy](features_audit/fig03_multivariate_synergy_and_interaction_gain.png)
+
+*Panel A shows McGill multivariate interaction information $I(X_i;X_j;Y)$ for the top 12 invariants. Panel B shows strictly positive synergy for 100.0% of the top invariant pairs, indicating joint diagnostic information not captured by univariate tests.*
+
+### Figure 15 — Spectral compression and manifold geometry
+
+![Cumulative SVD variance and inter-family Spearman correlation matrix](features_audit/fig04_spectral_compression_and_manifold_geometry.png)
+
+*Panel A shows spectral participation-ratio compression from 610.3 in raw edges (Rank90 = 656) to 5.66 in V16 invariants (Rank90 = 314). Panel B shows that Deceleration is weakly correlated with static signed-load operators ($\rho=0.21$–0.27), while Frustration, Antagonism, and Inhibitory are strongly inter-correlated ($\rho=0.91$–0.96).*
+
+### Figure 16 — Family information gain and cortical hubs
+
+![Information-gain share by operator family and top-15 ROIs by cumulative gain](features_audit/fig05_v16_ensemble_gain_and_cortical_hubs.png)
+
+*Panel A reports each family’s share of total information gain. Panel B ranks the top 15 ROIs by cumulative gain across all operators; ROI_115 leads with more than 1,380.*
+
+### Figure 17 — Representative invariant distributions
+
+![Control and ADHD distributions for representative invariants from all five operator families](features_audit/fig06_biophysical_invariants_distribution_shift.png)
+
+*The figure compares representative Control ($n=382$) and ADHD ($n=831$) distributions. Signed-load magnitudes for Frustration, Antagonism, and Inhibitory are lower in ADHD ($d<0$), indicating attenuated structured inhibitory/antagonistic network regulation rather than hyper-inhibition. Deceleration at Region 63 has $d=-0.11$, $q=0.112$.*
+
+### Family-level audit
+
+The five families contain 200 ROI-level features each. The table summarizes multiple-testing survival, effect-size and distribution-distance statistics, and model information gain. Share of total gain is computed from the audited total of **168,652.00**.
+
+| Topological family | Features ($N$) | Bonferroni ($\alpha=0.05$) | BH-FDR ($q<0.05$) | Total information gain | Share of total gain | Mean $\lvert d \rvert$ | Max KS statistic | Mean Wasserstein-1 | Mean JSD (bits) |
+| :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| **Frustration** | 200 | 49 | 200 | 44,559.71 | 26.42% | 0.2414 | 0.1779 | 0.2501 | 0.02228 |
+| **Inhibitory** | 200 | 36 | 174 | 35,634.58 | 21.13% | 0.2030 | 0.1824 | 0.2115 | 0.01782 |
+| **Antagonism** | 200 | 25 | 164 | 33,689.40 | 19.98% | 0.1871 | 0.1627 | 0.1939 | 0.01684 |
+| **DeadEndCrash** | 200 | 13 | 177 | 33,221.35 | 19.70% | 0.1876 | 0.1552 | 0.1957 | 0.01661 |
+| **Deceleration** | 200 | 0 | 12 | 21,546.96 | 12.78% | 0.0619 | 0.1347 | 0.0808 | 0.01077 |
+| **Total / global** | **1,000** | **123** | **727** | **168,652.00** | **100.00%** | — | — | — | — |
+
+### Top 10 invariants by information gain
+
+| Rank | Feature | Family | ROI | Information gain | Cohen’s $d$ | KS statistic | Wasserstein-1 | JSD (bits) | BH-FDR $q$ |
+| :---: | :--- | :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | `Region_49_Frustration` | Frustration | 49 | 383.96 | -0.2675 | 0.1615 | 0.2745 | 0.03840 | 3.89e-04 |
+| 2 | `Region_149_Frustration` | Frustration | 149 | 377.29 | -0.2893 | 0.1402 | 0.2982 | 0.03773 | 2.08e-04 |
+| 3 | `Region_127_Frustration` | Frustration | 127 | 377.23 | -0.2825 | 0.1367 | 0.2841 | 0.03772 | 2.72e-04 |
+| 4 | `Region_17_Frustration` | Frustration | 17 | 365.71 | -0.3309 | 0.1720 | 0.3395 | 0.03657 | 9.76e-05 |
+| 5 | `Region_147_Frustration` | Frustration | 147 | 351.34 | -0.2873 | 0.1287 | 0.2951 | 0.03513 | 2.07e-04 |
+| 6 | `Region_174_Frustration` | Frustration | 174 | 349.18 | -0.2723 | 0.1400 | 0.2796 | 0.03492 | 3.67e-04 |
+| 7 | `Region_10_Frustration` | Frustration | 10 | 343.67 | -0.2846 | 0.1658 | 0.2961 | 0.03437 | 2.15e-04 |
+| 8 | `Region_186_Frustration` | Frustration | 186 | 343.44 | -0.2482 | 0.1581 | 0.2628 | 0.03434 | 7.23e-04 |
+| 9 | `Region_119_Frustration` | Frustration | 119 | 337.02 | -0.3087 | 0.1462 | 0.3223 | 0.03370 | 1.79e-04 |
+| 10 | `Region_27_Frustration` | Frustration | 27 | 335.42 | -0.2674 | 0.1467 | 0.2767 | 0.03354 | 3.82e-04 |
+
+Additional high-gain non-Frustration features are `Region_48_Antagonism` (gain 332.19, $q=0.0130$), `Region_76_Antagonism` (gain 328.80, $q=5.66 \times 10^{-4}$), and `Region_115_Antagonism` (gain 328.17, $q=2.74 \times 10^{-4}$).
+
+## Nested cross-validation architecture
+
+The hybrid model combines a leakage-controlled linear baseline with nonlinear topological refinement.
+
+1. **Fold-local feature extraction and compression.** Within each cross-validation split, the 19,900 raw edges are compressed with an L2-regularized linear meta-model (`Ridge` / `LogisticRegression`). This produces an out-of-fold global baseline score, `LINEAR_META_RISK_SCORE` $\in [0,1]$, so the linear stacking stage does not train on the rows later used to fit the tree model.
+2. **Nonlinear refinement.** `LightGBM` ingests the out-of-fold linear risk score together with all 1,000 V16 invariants. Inner 5-fold cross-validation with Optuna tunes hyperparameters and performs feature selection, enabling conditional effects such as Deceleration given global risk state.
+3. **Outer evaluation.** A 5-fold nested cross-validation estimates generalization performance. The outer-fold ROC-AUC scores are:
+
+| Outer fold | ROC-AUC |
+| :---: | ---: |
+| 1 | 0.7259 |
+| 2 | 0.7212 |
+| 3 | 0.6961 |
+| 4 | 0.7441 |
+| 5 | 0.6948 |
+| **Mean out-of-fold ROC-AUC** | **0.7164 ± 0.0185 SD** |
+
+## Reproducibility artifacts
+
+- [`features_audit/table01_v16_1000_topological_invariants_audit.csv`](features_audit/table01_v16_1000_topological_invariants_audit.csv) — feature-level statistics for all 1,000 invariants, including Cohen’s $d$, Cliff’s delta, Fisher ratio, KS statistic, Wasserstein-1 distance, JSD, raw $p$-value, BH-FDR $q$-value, and information gain.
+- [`features_audit/table02_v16_family_physics_and_gain_summary.csv`](features_audit/table02_v16_family_physics_and_gain_summary.csv) — aggregate statistics, multiple-testing survival, and information gain by operator family.
+- [`features_audit/audit_summary_v16_topological_breakthrough.json`](features_audit/audit_summary_v16_topological_breakthrough.json) — machine-readable global audit results and top 10 invariants by information gain.
+- [`data_audit/README_FIGURES.md`](data_audit/README_FIGURES.md) — baseline raw-edge figure descriptions and audited values.
