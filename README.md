@@ -9,13 +9,13 @@ The full labeled audit covers **1,213 participants** (**382 controls**, **831 AD
 ## Contents
 
 - [Study overview](#study-overview)
-- [Mathematical formulation and biophysical rationale](#mathematical-formulation-and-biophysical-rationale)
 - [Repository contents](#repository-contents)
 - [Baseline edge-space audit](#baseline-edge-space-audit)
-- [Topological mechanisms](#topological-mechanisms)
+- [Mathematical formulation and topological mechanisms](#mathematical-formulation-and-topological-mechanisms)
 - [Statistical and information-theoretic results](#statistical-and-information-theoretic-results)
 - [Nested cross-validation architecture](#nested-cross-validation-architecture)
 - [Reproducibility artifacts](#reproducibility-artifacts)
+- [Repository metadata](#repository-metadata)
 
 ## Study overview
 
@@ -30,66 +30,6 @@ Each participant is represented by a signed functional-connectivity matrix over 
 | **Deceleration** | Attenuated hub propagation and lower-weight multi-hop routing |
 
 The baseline audit characterizes the raw-edge signal and its geometry. The topological audit then tests whether higher-order, localized network summaries expose cohort structure that is not apparent in first-order mean connectomes or individual edges.
-
-## Mathematical formulation and biophysical rationale
-
-For each participant, let the signed functional connectome be $W \in \mathbb{R}^{200 \times 200}$, with $W_{ii}=0$, and let $N=200$. Decompose each edge into positive and negative magnitudes:
-
-$$
-W_{ij}^{+} = \max(W_{ij}, 0), \qquad W_{ij}^{-} = \max(-W_{ij}, 0).
-$$
-
-Here, $W_{ij}^{+}$ and $W_{ij}^{-}$ represent positive and negative functional coupling magnitudes, respectively. The V16 operators summarize local signed organization and directional routing around each ROI, capturing circuit properties that cannot be recovered from any single edge alone.
-
-### Triadic Frustration (Fᵢ)
-
-Signed triangle phase-conflict density:
-
-$$
-F_i = \frac{1}{\binom{N-1}{2}} \sum_{j < k,\; j,k \neq i} \mathbb{I}\!\left(W_{ij} W_{jk} W_{ki} < 0\right) \left(|W_{ij} W_{jk} W_{ki}|\right)^{1/3}
-$$
-
-Frustration quantifies local phase conflict in signed microcircuits by measuring the density and strength of inconsistent signed triangles incident on ROI $i$. Its consistent reduction in ADHD (d < 0 across all 200 ROIs) reflects loss of structured triadic coordination, a higher-order property that is not represented by individual edge weights.
-
-### Inhibitory Mass (Mᵢ⁻)
-
-Cumulative negative functional coupling:
-
-$$
-M_i^{-} = \sum_{j \neq i} W_{ij}^{-}
-$$
-
-Inhibitory mass measures the cumulative negative signed load, or active inhibitory gating, onto ROI $i$. It tests whether ADHD is associated with attenuated inhibitory regulation rather than uniform hypo-connectivity by distinguishing the magnitude of negative coupling from total connectivity.
-
-### Local Antagonism (Aᵢ)
-
-Competitive excitatory–inhibitory coupling balance:
-
-$$
-A_i = \frac{2 \left(\sum_{j \neq i} W_{ij}^{+}\right)\left(\sum_{j \neq i} W_{ij}^{-}\right)}{\sum_{j \neq i} |W_{ij}| + \varepsilon}
-$$
-
-Local antagonism is high when positive and negative coupling jointly contribute substantial load around an ROI. It highlights regions mediating cross-network competition, such as Default Mode versus Task-Positive networks, rather than passively disconnected nodes. The small $\varepsilon>0$ stabilizes the normalization when total incident coupling is near zero.
-
-### Dead-End Crash / Information Sinkhole (Sᵢ)
-
-Directional arrival-to-blockade asymmetry:
-
-$$
-S_i = \left(\sum_{j \neq i} W_{ji}^{+}\right) \cdot \frac{\sum_{k \neq i} W_{ik}^{-}}{\sum_{k \neq i} |W_{ik}| + \varepsilon}
-$$
-
-This operator combines positive incoming signal with the fraction of outgoing coupling that is negative. It detects sinkhole hubs, such as `Region 66`, where strong excitatory input collides with inhibitory or effectively zero outbound pathways, a directional failure pattern that a static edge magnitude cannot express.
-
-### Kinetic Flow Deceleration (Dᵢ)
-
-Multi-hop routing detour penalty under primary hub attenuation:
-
-$$
-D_i = \frac{1}{N-1} \sum_{j \neq i} \left(\ell_{\mathrm{detour}}(i, j) - \ell_{\mathrm{direct}}(i, j)\right)
-$$
-
-Deceleration measures the mean additional path length incurred when routing is diverted from a direct route by attenuation at primary hubs. It provides an orthogonal geometric axis (ρ = 0.21–0.27) that drives conditional nonlinear tree gain (21,546.96) despite a modest marginal linear shift (|d| = 0.0619).
 
 ## Repository contents
 
@@ -140,15 +80,31 @@ The baseline figures show the raw correlation-edge landscape before topological 
 
 *Mean edge-wise mutual information with ADHD outcome is 0.00525 nats versus a null value of 0.00476 nats. ROC-AUC benchmarks are 0.5704 for the best single edge, 0.5381 for flat L2 logistic regression, and 0.7164 for the V16 signed-graph hybrid under 5-fold nested cross-validation.*
 
-## Topological mechanisms
+## Mathematical formulation and topological mechanisms
 
-The following conceptual and empirical visualizations motivate the five operators and show why regional signed and directional structure can add information beyond mean edge values.
+For each participant, let the signed functional connectome be $W \in \mathbb{R}^{200 \times 200}$, with $W_{ii}=0$, and let $N=200$. Decompose each edge into positive and negative magnitudes:
+
+$$
+W_{ij}^{+} = \max(W_{ij}, 0), \qquad W_{ij}^{-} = \max(-W_{ij}, 0).
+$$
 
 ### Figure 7 — Mean-connectome overlap
 
 ![Control and ADHD mean connectivity matrices with overlapping edge-weight distributions](topology_visualizations/fig01_mean_connectomes_overlap.png)
 
-*Panels A and B show the 200 × 200 group-mean functional-connectivity matrices; Panel C compares their edge-weight densities. The mean absolute matrix difference is 0.0021 and the maximum absolute difference is 0.0154, motivating higher-order feature extraction.*
+*Panels A and B show the 200 × 200 group-mean functional-connectivity matrices; Panel C compares their edge-weight densities. The mean absolute edge difference (|Δr| = 0.0021) and maximum absolute difference (0.0154) show the overlap that motivates higher-order feature extraction.*
+
+Here, $W_{ij}^{+}$ and $W_{ij}^{-}$ represent positive and negative functional coupling magnitudes, respectively. The V16 operators summarize local signed organization and directional routing around each ROI, capturing circuit properties that cannot be recovered from any single edge alone.
+
+### 1. Triadic Frustration (Fᵢ)
+
+Signed triangle phase-conflict density:
+
+$$
+F_i = \frac{1}{\binom{N-1}{2}} \sum_{j < k,\; j,k \neq i} \mathbb{I}\!\left(W_{ij} W_{jk} W_{ki} < 0\right) \left(|W_{ij} W_{jk} W_{ki}|\right)^{1/3}
+$$
+
+Frustration quantifies local phase conflict in signed microcircuits by measuring the density and strength of inconsistent signed triangles incident on ROI $i$. Its consistent reduction in ADHD (d < 0 across all 200 ROIs) reflects loss of structured triadic coordination, a higher-order property that is not represented by individual edge weights.
 
 ### Figure 8 — Triadic frustration
 
@@ -156,23 +112,63 @@ The following conceptual and empirical visualizations motivate the five operator
 
 *A balanced triad has a positive signed-edge product, for example (−0.6)(−0.5)(0.7) = +0.21. A frustrated triad has a negative product, for example (0.8)(0.6)(−0.7) = −0.33, representing local phase conflict in the signed network.*
 
-### Figure 9 — Kinetic flow deceleration
+### 2. Inhibitory Mass (Mᵢ⁻)
 
-![Direct hub propagation compared with attenuated hub flow and a multi-hop detour](topology_visualizations/fig03_mechanism_kinetic_flow_deceleration.png)
+Cumulative negative functional coupling:
 
-*The schematic contrasts direct high-weight propagation through Region 12 (W = 0.85 → 0.80) with a decelerated route in which hub attenuation (W = 0.15) diverts flow through a longer, lower-weight path involving Region 163 (W = 0.40 → 0.35).*
+$$
+M_i^{-} = \sum_{j \neq i} W_{ij}^{-}
+$$
 
-### Figure 10 — Dead-end crash and information sinkholes
+Inhibitory mass measures the cumulative negative signed load, or active inhibitory gating, onto ROI $i$. It tests whether ADHD is associated with attenuated inhibitory regulation rather than uniform hypo-connectivity by distinguishing the magnitude of negative coupling from total connectivity. Its empirical cohort shift is shown in Figure 17, with regional family gain concentrations shown in Figure 16.
+
+### 3. Local Antagonism (Aᵢ)
+
+Competitive excitatory–inhibitory coupling balance:
+
+$$
+A_i = \frac{2 \left(\sum_{j \neq i} W_{ij}^{+}\right)\left(\sum_{j \neq i} W_{ij}^{-}\right)}{\sum_{j \neq i} |W_{ij}| + \varepsilon}
+$$
+
+Local antagonism is high when positive and negative coupling jointly contribute substantial load around an ROI. It highlights regions mediating cross-network competition, such as Default Mode versus Task-Positive networks, rather than passively disconnected nodes. The small $\varepsilon>0$ stabilizes the normalization when total incident coupling is near zero. Its empirical cohort shift is shown in Figure 17, with regional family gain concentrations shown in Figure 16.
+
+### 4. Dead-End Crash / Information Sinkhole (Sᵢ)
+
+Directional arrival-to-blockade asymmetry:
+
+$$
+S_i = \left(\sum_{j \neq i} W_{ji}^{+}\right) \cdot \frac{\sum_{k \neq i} W_{ik}^{-}}{\sum_{k \neq i} |W_{ik}| + \varepsilon}
+$$
+
+This operator combines positive incoming signal with the fraction of outgoing coupling that is negative. It detects sinkhole hubs, such as `Region 66`, where strong excitatory input collides with inhibitory or effectively zero outbound pathways, a directional failure pattern that a static edge magnitude cannot express.
+
+### Figure 9 — Dead-end crash and information sinkholes
 
 ![Continuous relay propagation contrasted with an inbound signal blocked at an information sinkhole](topology_visualizations/fig04_mechanism_dead_end_crash.png)
 
 *The control schematic shows relay propagation (W = 0.70 → 0.75). The ADHD schematic shows a strong excitatory inbound signal (W = 0.65) terminating at a sinkhole with inhibitory outbound coupling (W = −0.50).*
 
-### Figure 11 — Region 66 directional asymmetry
+### Figure 10 — Region 66 directional asymmetry
 
 ![Inbound and outbound signal distributions at the Region 66 working-memory hub](topology_visualizations/fig05_region66_sinkhole_directional_asymmetry.png)
 
 *The empirical distribution contrasts positive arrival energy at Region 66 (inbound signal near W = 0.65) with exit pathways at or below the zero-transmission boundary.*
+
+### 5. Kinetic Flow Deceleration (Dᵢ)
+
+Multi-hop routing detour penalty under primary hub attenuation:
+
+$$
+D_i = \frac{1}{N-1} \sum_{j \neq i} \left(\ell_{\mathrm{detour}}(i, j) - \ell_{\mathrm{direct}}(i, j)\right)
+$$
+
+Deceleration measures the mean additional path length incurred when routing is diverted from a direct route by attenuation at primary hubs. It provides an orthogonal geometric axis (ρ = 0.21–0.27) that drives conditional nonlinear tree gain (21,546.96) despite a modest marginal linear shift (|d| = 0.0619). Its orthogonal geometry is quantified in Figure 15, and its conditional gain pattern is illustrated in Figure 13.
+
+### Figure 11 — Kinetic flow deceleration
+
+![Direct hub propagation compared with attenuated hub flow and a multi-hop detour](topology_visualizations/fig03_mechanism_kinetic_flow_deceleration.png)
+
+*The schematic contrasts direct high-weight propagation through Region 12 (W = 0.85 → 0.80) with a decelerated route in which hub attenuation (W = 0.15) diverts flow through a longer, lower-weight path involving Region 163 (W = 0.40 → 0.35).*
 
 ## Statistical and information-theoretic results
 
@@ -275,3 +271,8 @@ The **168,652.00** total information gain is distributed across all five operato
 - [`features_audit/table02_v16_family_physics_and_gain_summary.csv`](features_audit/table02_v16_family_physics_and_gain_summary.csv) — aggregate statistics, multiple-testing survival, and information gain by operator family.
 - [`features_audit/audit_summary_v16_topological_breakthrough.json`](features_audit/audit_summary_v16_topological_breakthrough.json) — machine-readable global audit results and top 10 invariants by information gain.
 - [`data_audit/README_FIGURES.md`](data_audit/README_FIGURES.md) — baseline raw-edge figure descriptions and audited values.
+
+## Repository metadata
+
+- **Suggested GitHub Short Description:** `Higher-order signed graph topological invariants for functional connectomics: 727 BH-FDR biomarkers and 0.7164 nested CV ROC-AUC.`
+- **Suggested GitHub Topics:** `connectomics`, `neuroimaging`, `fmri`, `adhd`, `graph-theory`, `signed-networks`, `topological-data-analysis`, `information-theory`, `machine-learning`, `computational-neuroscience`
